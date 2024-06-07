@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "socketioback"
+version = "0.1.0"
+description = ""
+authors = ["max31ru12 <maxevg72@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+python-socketio = "^5.11.2"
+eventlet = "^0.36.1"
+uvicorn = "^0.30.1"
+fastapi = "^0.111.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

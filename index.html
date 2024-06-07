@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Riddle demo</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
+    <script src="./assets/lariska.js"></script>
+    <link rel="stylesheet" type="text/css" href="./assets/style.css" />
+
+    <script>
+        console.log("window.location.hostname is ${window.location.hostname}")
+    </script>
+
+    <script>
+    var store = {
+      riddle: null,
+      score: 0,
+    };
+
+    app_pages = {
+        standby:  {},
+        showriddle: {},
+        showresult: {},
+        disconnected: {}
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        app = new Lariska({
+          store: store,
+          container: "#app",
+          pages: app_pages,
+          url: "http://127.0.0.1:8000/"
+        });
+
+        app.addHandler("next", ()=> {
+            app.emit("next")
+        })
+
+        app.addHandler("answer", ()=> {
+            user_answer = document.querySelector("textarea#answer").value
+            app.emit("answer", {text: user_answer})
+        })
+
+        app.on("riddle", "#showriddle", (data) => {
+            console.log(data)
+            app.store.riddle =  data
+        })
+
+        app.on("result", "#showanswer", (data) => {
+            console.log(data)
+            app.store.riddle =  data
+        })
+
+        app.on("score", null, (data) => {
+            console.log(data)
+            app.store.score =  data.value
+        })
+
+        app.go("standby");
+    })
+
+
+    </script>
+
+</head>
+<body>
+
+    <main>
+        <div class="container">
+            <section class="screen active card" id="app">
+                Загружаем
+            </section>
+        </div>
+    </main>
+
+<template id="standby">
+    <div class="center">
+        <h1>Игра в загадки</h1>
+        <p>Это демонстрационный стенд для проекта на основе socket.io мини-курса по работе с сокетами.</p>
+        <button class="tappable block" onclick="app.run('next')">Начать играть</button>
+    </div>
+</template>
+
+<template id="showriddle">
+    <p class="alert">Ваш счет: {{score}}</p>
+    <p>Загадка {{riddle.number}}</p>
+    <p class="alert info">
+        {{riddle.text}}
+    </p>
+    <p>Ваша версия</p>
+    <textarea id="answer" class="alert info block mb"></textarea>
+    <button class="tappable block" onclick="app.run('answer')">Ответить</button>
+</template>
+
+<template id="showanswer">
+    <p class="alert">Ваш счет: {{score}}</p>
+    <p>Загадка {{riddle.еуче}}</p>
+    <p class="alert info">
+        {{riddle.text}}
+    </p>
+    <p>Правильный ответ это:</p>
+   <h1>{{riddle.answer}}</h1>
+    <button class="tappable block" onclick="app.run('next')">Следующий вопрос</button>
+</template>
+
+</body>
+</html>
