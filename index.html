@@ -3,27 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Riddle demo</title>
+    <title>Chat demo</title>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
     <script src="./assets/lariska.js"></script>
     <link rel="stylesheet" type="text/css" href="./assets/style.css" />
 
     <script>
-        console.log("window.location.hostname is ${window.location.hostname}")
-    </script>
-
-    <script>
     var store = {
-      riddle: null,
-      score: 0,
+      messages: [],
+      rooms: ["lobby", "hobby", "bobby"],
+      error: null,
+      message: ""
     };
 
     app_pages = {
-        standby:  {},
-        showriddle: {},
-        showresult: {},
-        disconnected: {}
+        selectroom:  {},
+        createroom: {},
+        chat: {}
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -32,39 +29,47 @@
           store: store,
           container: "#app",
           pages: app_pages,
-          url: "http://127.0.0.1:8000/"
+          url: "http://127.0.0.1:80/"
         });
 
-        app.addHandler("next", ()=> {
-            app.emit("next")
+        app.addHandler("join", ()=> {
+           user_room = document.getElementById("user_room").value
+           user_name = document.getElementById("user_name").value
+           app.emit("join", {name: user_name, room: user_room})
         })
 
-        app.addHandler("answer", ()=> {
-            user_answer = document.querySelector("textarea#answer").value
-            app.emit("answer", {text: user_answer})
+       app.addHandler("send", ()=> {
+            user_input = document.getElementById("user_message")
+            user_message = user_input.value
+            user_input.value = ""
+            app.emit("send_message", {text: user_message})
+       })
+
+       app.addHandler("back", ()=> {
+            app.emit("leave")
+            app.go("selectroom")
+       })
+
+       app.on("connect", null, ()=> {
+            app.emit("get_rooms")
+       })
+
+       app.on("disconnect", "#disconnect")
+
+       app.on("rooms", "#selectroom", (data) => {
+           app.store.rooms = data
+       })
+
+        app.on("move", "#chat", (data) => {
+           app.store.room = data.room
         })
 
-        app.on("riddle", "#showriddle", (data) => {
-            console.log(data)
-            app.store.riddle =  data
-        })
+        app.on("message", "#messages", (data) => {
+            app.store.messages.push(data)
+        }, ".chat-messages")
 
-        app.on("result", "#showanswer", (data) => {
-            console.log(data)
-            app.store.riddle =  data
-        })
-
-        app.on("score", null, (data) => {
-            console.log(data)
-            app.store.score =  data.value
-        })
-
-        app.go("standby");
     })
-
-
     </script>
-
 </head>
 <body>
 
@@ -76,34 +81,47 @@
         </div>
     </main>
 
-<template id="standby">
-    <div class="center">
-        <h1>Игра в загадки</h1>
-        <p>Это демонстрационный стенд для проекта на основе socket.io мини-курса по работе с сокетами.</p>
-        <button class="tappable block" onclick="app.run('next')">Начать играть</button>
+<template id="selectroom">
+    <h1>Демо чат</h1>
+    <p>Выберите комнату</p>
+    <select class="alert alert-info block" id="user_room" class="block">
+        {{#each rooms}}
+            <option value="{{this}}">{{this}}</option>
+        {{/each}}
+    </select>
+    <p>Выберите имя</p>
+    <input type="text" class="alert alert-info block mb" id="user_name" placeholder="Например, Алиса"/>
+    <button class="tappable block" onclick="app.run('join')">Присоединиться</button>
+</template>
+
+<template id="chat">
+    <span class="back-link" onclick="app.run('back')">назад</span>
+    <h2>Комната: {{room}}</h2>
+
+    <div class="chat-messages">
+        {{#each messages}}
+            <p>{{this.author}}: {{this.text}}</p>
+        {{/each}}
+    </div>
+
+    <div class="message-form row">
+        <input class="alert info grow" type="text" id="user_message" placeholder="Введите сообщение">
+        <button class="form-button" onclick="app.run('send')"> Отправить </button>
     </div>
 </template>
 
-<template id="showriddle">
-    <p class="alert">Ваш счет: {{score}}</p>
-    <p>Загадка {{riddle.number}}</p>
-    <p class="alert info">
-        {{riddle.text}}
-    </p>
-    <p>Ваша версия</p>
-    <textarea id="answer" class="alert info block mb"></textarea>
-    <button class="tappable block" onclick="app.run('answer')">Ответить</button>
+<template id="messages" class="subtemplate">
+     <div class="chat-messages">
+        {{#each messages}}
+            <p>{{this.name}}: {{this.text}}</p>
+        {{/each}}
+     </div>
 </template>
 
-<template id="showanswer">
-    <p class="alert">Ваш счет: {{score}}</p>
-    <p>Загадка {{riddle.еуче}}</p>
-    <p class="alert info">
-        {{riddle.text}}
-    </p>
-    <p>Правильный ответ это:</p>
-   <h1>{{riddle.answer}}</h1>
-    <button class="tappable block" onclick="app.run('next')">Следующий вопрос</button>
+<template id="disconnect">
+
+    <h1>Соединение с сервером потеряно, приложение пытается восстановить связь</h1>
+
 </template>
 
 </body>

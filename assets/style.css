@@ -6,14 +6,16 @@
    background: none;
    box-shadow: None;
    font-size: 18px;
- }
-
+}
 
 body {
     background-color: #111;
     height: 1vh;
     font-family: arial, sans-serif;
 }
+
+select { border-right: 16px solid transparent;}
+
 
 /* BOX MODEL UTILITS */
 
@@ -22,14 +24,12 @@ body {
     margin: 0.5rem auto;
 }
 
-.card {
-   background-color: #fff;
-   border-radius: .5rem;
-   border: 1px solid #ccc;
-   padding: 2rem;
-   color: #333;
-   min-height: .9vh;
-   position: relative;
+.row {
+  display: flex;
+}
+
+.grow {
+  flex-grow: 1;
 }
 
 .center {
@@ -42,7 +42,7 @@ body {
 }
 
 .mb {
-margin-bottom: 2rem;
+   margin-bottom: 2rem;
 }
 
 /* TYPOGRAPHY */
@@ -68,6 +68,8 @@ button {
     padding: 1em;
 }
 
+
+
 .input-large{
     font-size: 4rem;
     text-align: center;
@@ -81,11 +83,9 @@ button {
 
 
 .back-link {
-    position: absolute;
-    top: 1em;
-    left: 1em;
     color: #666;
     text-decoration: none;
+    cursor: pointer;
 }
 
 .alert {
@@ -96,4 +96,26 @@ button {
 
 .alert.info {
     background-color: #EAF2FD;
+}
+
+.chat-messages {
+
+   min-height: 300px;
+
+}
+
+.form-button {
+    background-color: #0076FE;
+    color: #fff;
+    padding: .75em .5em;
+}
+
+.card {
+   background-color: #fff;
+   border-radius: .5rem;
+   border: 1px solid #ccc;
+   padding: 2rem;
+   color: #333;
+   min-height: .9vh;
+   position: relative;
 }

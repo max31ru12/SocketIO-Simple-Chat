@@ -1,68 +1,84 @@
-from random import randint
+import sys
+from collections import defaultdict
+from typing import Any
 
-from socketio import ASGIApp, AsyncServer
-from fastapi import FastAPI
 import uvicorn
+from loguru import logger
+from pydantic import ValidationError
+from socketio import AsyncServer, ASGIApp  # noqa
 
-app = FastAPI()
+from schemas import JoinMessage, User, Message
 
-sio = AsyncServer(async_mode="asgi", cors_allowed_origins='*')
-socketio_app = ASGIApp(
-    socketio_server=sio,
-    other_asgi_app=app,
-)
+sio = AsyncServer(cors_allowed_origins="*", async_mode="asgi")
+app = ASGIApp(socketio_server=sio)
 
-RIDDLES = [
-    ("Загадка 1", "Ответ 1"),
-    ("Загадка 2", "Ответ 2"),
-    ("Загадка 3", "Ответ 3"),
-    ("Загадка 4", "Ответ 4"),
-]
+logging_format = "<green>{time}</green> <level>{message}</level>"
+logger.add(sys.stdout, format=logging_format, level="ERROR")
 
-passed = []
+room_list = ["lobby", "general", "random"]
 
-scores = {}
+rooms = {
+    "lobby": [],
+    "general": [],
+    "random": [],
+}
 
-
-async def generate_riddle():
-    return RIDDLES[randint(0, len(RIDDLES) - 1)][0]
+users_storage: dict[str, User] = {}
 
 
 @sio.event
-async def connect(sid, environ):
-    scores[sid] = 0
-    pass
+async def connect(sid: str, environ: dict[Any]) -> None:
+    logger.info(f"Подключился {sid=}")
 
 
 @sio.event
-async def disconnect(sid):
-    pass
+async def disconnect(sid: str) -> None:
+    logger.info(f"Отключился {sid=}")
 
 
-@sio.on("next")
-async def give_riddle(sid, data):
-    riddle = await generate_riddle()
-    if riddle not in passed:
-        passed.append(riddle)
-        await sio.emit(event="riddle", to=sid, data={"text": riddle})
-    else:
-        await sio.emit(event="over", to=sid)
+@sio.on("get_rooms")
+async def get_rooms(sid: str, data) -> None:
+    logger.info("get_rooms was requested")
+    await sio.emit("rooms", to=sid, data=room_list)
 
 
-@sio.on("answer")
-async def give_answer(sid, data):
-    is_correct = True if passed[-1][1] == data["text"] else False
-    await sio.emit(event="result", to=sid, data={
-        "riddle": passed[-1][0],
-        "is_correct": is_correct,
-        "answer": passed[-1][1]
-    })
-    if is_correct:
-        scores[sid] += 1
-    await sio.emit(event="score", to=sid, data={"value": scores[sid]})
+@sio.on("join")
+async def join_room(sid, data) -> None:
+    try:
+        data: dict[str, str] = JoinMessage(**data).model_dump()
+        rooms[data["room"]].append(sid)
+        users_storage[sid] = User(**data)
+
+        await sio.emit(event="move", to=sid, data={"room": data["room"]})
+        await sio.save_session(sid=sid, session=data)
+        await sio.enter_room(sid, data["room"])
+
+        logger.debug(f"{sid} entered room {data['room']}, added session")
+    except ValidationError as e:
+        logger.error(e.json())
+        await sio.emit(event="move", to=sid, data=e.json())
 
 
+@sio.on("leave")
+async def leave_room(sid: str, data) -> None:
+    session = await sio.get_session(sid)
+    rooms[session["room"]].remove(sid)
+    await sio.leave_room(sid, session["room"])
+    logger.info(f"{sid} leaved room {session['room']}")
+    session["room"] = ""
+
+
+@sio.on("send_message")
+async def send_message(sid: str, data) -> None:
+    user = users_storage[sid]
+    try:
+        message = Message(author=user.model_dump()["name"], **data)
+        user.messages.append(message)
+        await sio.emit("message", room=user.room, data={"name": user.name,
+                                                        "text": message.text})
+    except ValidationError as e:
+        logger.error(e.json())
 
 
 if __name__ == "__main__":
-    uvicorn.run(socketio_app, host='0.0.0.0', port=8000)
+    uvicorn.run(app, host='127.0.0.1', port=80)
